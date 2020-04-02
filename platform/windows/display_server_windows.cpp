@@ -1756,6 +1756,12 @@ void DisplayServerWindows::_dispatch_input_events(const Ref<InputEvent> &p_event
 }
 
 void DisplayServerWindows::_dispatch_input_event(const Ref<InputEvent> &p_event) {
+	_THREAD_SAFE_METHOD_
+	if (in_dispatch_input_event) {
+		return;
+	}
+
+	in_dispatch_input_event = true;
 
 	Variant ev = p_event;
 	Variant *evp = &ev;
@@ -1781,6 +1787,8 @@ void DisplayServerWindows::_dispatch_input_event(const Ref<InputEvent> &p_event)
 			callable.call((const Variant **)&evp, 1, ret, ce);
 		}
 	}
+
+	in_dispatch_input_event = false;
 }
 
 LRESULT DisplayServerWindows::WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
