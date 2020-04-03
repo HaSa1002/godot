@@ -3006,5 +3006,6 @@ DisplayServerWindows::~DisplayServerWindows() {
 #endif
 
 		DestroyWindow(windows[MAIN_WINDOW_ID].hWnd);
+		windows.erase(MAIN_WINDOW_ID);
 	}
 }
