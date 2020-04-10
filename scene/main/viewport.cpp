@@ -1906,6 +1906,13 @@ void Viewport::_gui_input_event(Ref<InputEvent> p_event) {
 
 					ci = ci->get_parent_item();
 				}
+
+				MenuButton *menu_button = Object::cast_to<MenuButton>(ci);
+				if (menu_button) {
+					gui.menu_button_pressed = menu_button;
+				} else {
+					gui.menu_button_pressed = nullptr;
+				}
 			}
 
 			if (gui.mouse_focus && gui.mouse_focus->can_process()) {
@@ -2075,6 +2082,21 @@ void Viewport::_gui_input_event(Ref<InputEvent> p_event) {
 			over = gui.mouse_focus;
 		} else {
 			over = _gui_find_control(mpos);
+		}
+
+		if (gui.menu_button_pressed) {
+			MenuButton *menu_button_over = Object::cast_to<MenuButton>(over);
+			MenuButton *menu_button_pressed = Object::cast_to<MenuButton>(gui.menu_button_pressed);
+
+			if (menu_button_over && menu_button_over != menu_button_pressed &&
+					menu_button_over->is_switch_on_hover() && menu_button_pressed->is_switch_on_hover() &&
+					!menu_button_over->is_disabled() && menu_button_pressed->is_pressed() &&
+					(menu_button_pressed->get_parent()->is_ancestor_of(menu_button_over) ||
+							menu_button_over->get_parent()->is_ancestor_of(menu_button_pressed))) {
+				menu_button_over->pressed();
+				menu_button_pressed->get_popup()->hide();
+				gui.menu_button_pressed = menu_button_over;
+			}
 		}
 
 		if (over != gui.mouse_over) {

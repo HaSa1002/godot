@@ -372,6 +372,7 @@ private:
 		bool dragging = false;
 		bool embed_subwindows_hint = false;
 		bool embedding_subwindows = false;
+		Control *menu_button_pressed = nullptr;
 
 		Window *subwindow_focused = nullptr;
 		SubWindowDrag subwindow_drag = SUB_WINDOW_DRAG_DISABLED;
