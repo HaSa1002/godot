@@ -743,6 +743,38 @@ static Dictionary _get_builtin_script_templates() {
 			"\n"
 			"\n";
 
+	//Style Guide Based
+	templates["styleguide.gd"] =
+			"class_name %CLASS_NAME%\n"
+			"extends %BASE%\n"
+			"#\n"
+			"# Document class\n"
+			"#\n"
+			"\n"
+			"# signals\n"
+			"\n"
+			"# enums\n"
+			"\n"
+			"# constants\n"
+			"\n"
+			"# exported variables\n"
+			"\n"
+			"# public variables\n"
+			"\n"
+			"# private _variables\n"
+			"\n"
+			"# onready variables\n"
+			"\n"
+			"\n"
+			"func _ready()%VOID_RETURN%:\n"
+			"%TS%pass\n"
+			"\n"
+			"# other built-in virtual methods\n"
+			"\n"
+			"# public methods\n"
+			"\n"
+			"# private _methods\n";
+
 	return templates;
 }
 
