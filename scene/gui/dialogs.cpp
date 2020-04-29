@@ -306,6 +306,7 @@ AcceptDialog::AcceptDialog() {
 	set_wrap_controls(true);
 	set_visible(false);
 	set_transient(true);
+	set_flag(FLAG_ALWAYS_ON_TOP, true);
 
 	bg = memnew(Panel);
 	add_child(bg);
