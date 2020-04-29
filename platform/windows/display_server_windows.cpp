@@ -511,6 +511,7 @@ DisplayServer::WindowID DisplayServerWindows::create_sub_window(WindowMode p_mod
 	if (p_flags & WINDOW_FLAG_NO_FOCUS_BIT) {
 		wd.no_focus = true;
 	}
+	//wd.no_focus = true;
 
 	_update_window_style(window_id);
 
@@ -695,7 +696,7 @@ void DisplayServerWindows::window_set_position(const Point2i &p_position, Window
 	const DWORD exStyle = GetWindowLongPtr(wd.hWnd, GWL_EXSTYLE);
 
 	AdjustWindowRectEx(&rc, style, false, exStyle);
-	MoveWindow(wd.hWnd, rc.left, rc.top, rc.right - rc.left, rc.bottom - rc.top, TRUE);
+	SetWindowPos(wd.hWnd, 0, rc.left, rc.top, rc.right - rc.left, rc.bottom - rc.top, SWP_NOZORDER | SWP_NOACTIVATE);
 #endif
 	// Don't let the mouse leave the window when moved
 	if (mouse_mode == MOUSE_MODE_CONFINED) {
@@ -1811,6 +1812,9 @@ LRESULT DisplayServerWindows::WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARA
 			break;
 		}
 	}
+	if (window_id == INVALID_WINDOW_ID) {
+		return DefWindowProcW(hWnd, uMsg, wParam, lParam);
+	}
 
 	switch (uMsg) // Check For Windows Messages
 	{
@@ -1902,6 +1906,11 @@ LRESULT DisplayServerWindows::WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARA
 
 			return 0; // Jump Back
 		}
+		case WM_MOUSEACTIVATE: {
+			if (windows[window_id].no_focus)
+				return MA_NOACTIVATE;
+
+		} break;
 		case WM_MOUSELEAVE: {
 
 			old_invalid = true;
@@ -2727,9 +2736,13 @@ DisplayServer::WindowID DisplayServerWindows::_create_window(WindowMode p_mode, 
 	AdjustWindowRectEx(&WindowRect, dwStyle, FALSE, dwExStyle);
 
 	WindowID id = window_id_counter;
+
+	if (id > 0) {
+		dwExStyle |= WS_EX_TOOLWINDOW;
+	}
+
 	{
 		WindowData wd;
-
 		wd.hWnd = CreateWindowExW(
 				dwExStyle,
 				L"Engine", L"",

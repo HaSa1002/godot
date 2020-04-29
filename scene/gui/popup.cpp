@@ -141,6 +141,7 @@ Popup::Popup() {
 	set_transient(true);
 	set_flag(FLAG_BORDERLESS, true);
 	set_flag(FLAG_RESIZE_DISABLED, true);
+	set_flag(FLAG_NO_FOCUS, true);
 
 	connect("window_input", callable_mp(this, &Popup::_input_from_window));
 }
