@@ -971,6 +971,7 @@ void Window::popup_centered_clamped(const Size2i &p_size, float p_fallback_ratio
 		int parent_screen = DisplayServer::get_singleton()->window_get_current_screen(parent_id);
 		parent_rect.position = DisplayServer::get_singleton()->screen_get_position(parent_screen);
 		parent_rect.size = DisplayServer::get_singleton()->screen_get_size(parent_screen);
+		current_screen = parent_screen;
 	}
 
 	Vector2i size_ratio = parent_rect.size * p_fallback_ratio;
@@ -995,6 +996,7 @@ void Window::popup_centered(const Size2i &p_minsize) {
 		int parent_screen = DisplayServer::get_singleton()->window_get_current_screen(parent_id);
 		parent_rect.position = DisplayServer::get_singleton()->screen_get_position(parent_screen);
 		parent_rect.size = DisplayServer::get_singleton()->screen_get_size(parent_screen);
+		current_screen = parent_screen;
 	}
 
 	Rect2i popup_rect;
@@ -1022,6 +1024,7 @@ void Window::popup_centered_ratio(float p_ratio) {
 		int parent_screen = DisplayServer::get_singleton()->window_get_current_screen(parent_id);
 		parent_rect.position = DisplayServer::get_singleton()->screen_get_position(parent_screen);
 		parent_rect.size = DisplayServer::get_singleton()->screen_get_size(parent_screen);
+		current_screen = parent_screen;
 	}
 
 	Rect2i popup_rect;
@@ -1034,7 +1037,9 @@ void Window::popup_centered_ratio(float p_ratio) {
 void Window::popup(const Rect2i &p_screen_rect) {
 
 	emit_signal("about_to_popup");
-
+	if (!is_embedded()) {
+		current_screen = DisplayServer::get_singleton()->window_get_current_screen(get_parent_visible_window()->get_window_id());
+	}
 	if (p_screen_rect != Rect2i()) {
 		set_position(p_screen_rect.position);
 		set_size(p_screen_rect.size);
