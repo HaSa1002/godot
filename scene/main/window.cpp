@@ -231,12 +231,14 @@ void Window::_make_window() {
 
 	window_id = DisplayServer::get_singleton()->create_sub_window(DisplayServer::WindowMode(mode), f, Rect2i(position, size));
 	ERR_FAIL_COND(window_id == DisplayServer::INVALID_WINDOW_ID);
+	//All of that should be done in the Displayserver on window creation (some of it is a dublicate of stuff that is already set)
 	DisplayServer::get_singleton()->window_set_current_screen(current_screen, window_id);
 	DisplayServer::get_singleton()->window_set_max_size(max_size, window_id);
 	DisplayServer::get_singleton()->window_set_min_size(min_size, window_id);
 	DisplayServer::get_singleton()->window_set_title(title, window_id);
 	DisplayServer::get_singleton()->window_attach_instance_id(get_instance_id(), window_id);
 
+	//Again was already called
 	_update_window_size();
 
 	if (transient_parent && transient_parent->window_id != DisplayServer::INVALID_WINDOW_ID) {
