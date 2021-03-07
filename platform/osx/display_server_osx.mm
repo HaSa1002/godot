@@ -2376,7 +2376,7 @@ Vector<DisplayServer::WindowID> DisplayServerOSX::get_window_list() const {
 DisplayServer::WindowID DisplayServerOSX::create_sub_window(WindowMode p_mode, uint32_t p_flags, const Rect2i &p_rect) {
 	_THREAD_SAFE_METHOD_
 
-	WindowID id = _create_window(p_mode, p_rect);
+	WindowID id = _create_window(p_mode, p_flags, p_rect);
 	for (int i = 0; i < WINDOW_FLAG_MAX; i++) {
 		if (p_flags & (1 << i)) {
 			window_set_flag(WindowFlags(i), true, id);
@@ -2921,9 +2921,6 @@ void DisplayServerOSX::window_set_flag(WindowFlags p_flag, bool p_enabled, Windo
 		case WINDOW_FLAG_NO_FOCUS: {
 			wd.no_focus = p_enabled;
 		} break;
-		case WINDOW_FLAG_INPUT_WITHOUT_FOCUS: {
-			wd.input_without_focus = p_enabled;
-		} break;
 		default: {
 		}
 	}
@@ -2950,9 +2947,6 @@ bool DisplayServerOSX::window_get_flag(WindowFlags p_flag, WindowID p_window) co
 		} break;
 		case WINDOW_FLAG_NO_FOCUS: {
 			return wd.no_focus;
-		} break;
-		case WINDOW_FLAG_INPUT_WITHOUT_FOCUS: {
-			return wd.input_without_focus;
 		} break;
 		default: {
 		}
@@ -3587,7 +3581,7 @@ DisplayServer *DisplayServerOSX::create_func(const String &p_rendering_driver, W
 	return ds;
 }
 
-DisplayServerOSX::WindowID DisplayServerOSX::_create_window(WindowMode p_mode, const Rect2i &p_rect) {
+DisplayServerOSX::WindowID DisplayServerOSX::_create_window(WindowMode p_mode, uint32_t p_flags, const Rect2i &p_rect) {
 	WindowID id;
 	const float scale = screen_get_max_scale();
 	{
@@ -3614,7 +3608,8 @@ DisplayServerOSX::WindowID DisplayServerOSX::_create_window(WindowMode p_mode, c
 		if (window_id_counter != MAIN_WINDOW_ID && (p_flags & WINDOW_FLAG_BORDERLESS)) {
 			// We want to create child windows whenever possible.
 			// Here are likely different flags needed and we have to fix positioning, I guess.
-			[windows[MAIN_WINDOW_ID].window_object addChildWindow:wd.window_object ordered:NSWindowAbove]
+			[windows[MAIN_WINDOW_ID].window_object addChildWindow:wd.window_object ordered:NSWindowAbove];
+			wd.input_without_focus = true;
 		}
 
 		wd.window_view = [[GodotContentView alloc] init];
@@ -3891,7 +3886,7 @@ DisplayServerOSX::DisplayServerOSX(const String &p_rendering_driver, WindowMode 
 	Point2i window_position(
 			screen_get_position(0).x + (screen_get_size(0).width - p_resolution.width) / 2,
 			screen_get_position(0).y + (screen_get_size(0).height - p_resolution.height) / 2);
-	WindowID main_window = _create_window(p_mode, Rect2i(window_position, p_resolution));
+	WindowID main_window = _create_window(p_mode, p_flags, Rect2i(window_position, p_resolution));
 	ERR_FAIL_COND(main_window == INVALID_WINDOW_ID);
 	for (int i = 0; i < WINDOW_FLAG_MAX; i++) {
 		if (p_flags & (1 << i)) {
