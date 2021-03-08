@@ -136,6 +136,7 @@ public:
 		bool borderless = false;
 		bool resize_disabled = false;
 		bool no_focus = false;
+		bool input_without_focus = false;
 	};
 
 	Point2i im_selection;
@@ -145,7 +146,7 @@ public:
 
 	WindowID window_id_counter = MAIN_WINDOW_ID;
 
-	WindowID _create_window(WindowMode p_mode, const Rect2i &p_rect);
+	WindowID _create_window(WindowMode p_mode, uint32_t p_flags, const Rect2i &p_rect);
 	void _update_window(WindowData p_wd);
 	void _send_window_event(const WindowData &wd, WindowEvent p_event);
 	static void _dispatch_input_events(const Ref<InputEvent> &p_event);

@@ -85,7 +85,7 @@
 #define VALUATOR_TILTX 3
 #define VALUATOR_TILTY 4
 
-//#define DISPLAY_SERVER_X11_DEBUG_LOGS_ENABLED
+#define DISPLAY_SERVER_X11_DEBUG_LOGS_ENABLED
 #ifdef DISPLAY_SERVER_X11_DEBUG_LOGS_ENABLED
 #define DEBUG_LOG_X11(...) printf(__VA_ARGS__)
 #else
@@ -1161,8 +1161,14 @@ void DisplayServerX11::window_set_position(const Point2i &p_position, WindowID p
 	ERR_FAIL_COND(!windows.has(p_window));
 	WindowData &wd = windows[p_window];
 
+	Point2i position = p_position;
 	int x = 0;
 	int y = 0;
+	if (p_window != MAIN_WINDOW_ID) {
+		Window parent = windows[MAIN_WINDOW_ID].x11_window; // replace with GetParent (however this may work)
+		Window child;
+		XTranslateCoordinates(x11_display, DefaultRootWindow(x11_display), parent, position.x, position.y, &position.x, &position.y, &child);
+	}
 	if (!window_get_flag(WINDOW_FLAG_BORDERLESS, p_window)) {
 		//exclude window decorations
 		XSync(x11_display, False);
@@ -1183,7 +1189,7 @@ void DisplayServerX11::window_set_position(const Point2i &p_position, WindowID p
 			}
 		}
 	}
-	XMoveWindow(x11_display, wd.x11_window, p_position.x - x, p_position.y - y);
+	XMoveWindow(x11_display, wd.x11_window, position.x - x, position.y - y);
 	_update_real_mouse_position(wd);
 }
 
@@ -1702,6 +1708,9 @@ void DisplayServerX11::window_set_flag(WindowFlags p_flag, bool p_enabled, Windo
 		case WINDOW_FLAG_TRANSPARENT: {
 			//todo reimplement
 		} break;
+		case WINDOW_FLAG_NO_FOCUS: {
+			wd.no_focus = p_enabled;
+		} break;
 		default: {
 		}
 	}
@@ -1743,6 +1752,9 @@ bool DisplayServerX11::window_get_flag(WindowFlags p_flag, WindowID p_window) co
 		case WINDOW_FLAG_TRANSPARENT: {
 			//todo reimplement
 		} break;
+		case WINDOW_FLAG_NO_FOCUS: {
+			return wd.no_focus;
+		} break;
 		default: {
 		}
 	}
@@ -1781,6 +1793,9 @@ void DisplayServerX11::window_move_to_foreground(WindowID p_window) {
 
 	ERR_FAIL_COND(!windows.has(p_window));
 	WindowData &wd = windows[p_window];
+	if (wd.no_focus) {
+		return;
+	}
 
 	XEvent xev;
 	Atom net_active_window = XInternAtom(x11_display, "_NET_ACTIVE_WINDOW", False);
@@ -2573,7 +2588,7 @@ void DisplayServerX11::_window_changed(XEvent *event) {
 	Rect2i new_rect;
 
 	WindowData &wd = windows[window_id];
-	if (wd.x11_window != event->xany.window) { // Check if the correct window, in case it was not main window or anything else
+	if (wd.x11_window != event->xany.window || event->xconfigure.override_redirect) { // Check if the correct window, in case it was not main window or anything else
 		return;
 	}
 
@@ -2581,7 +2596,8 @@ void DisplayServerX11::_window_changed(XEvent *event) {
 		//the position in xconfigure is not useful here, obtain it manually
 		int x, y;
 		Window child;
-		XTranslateCoordinates(x11_display, wd.x11_window, DefaultRootWindow(x11_display), 0, 0, &x, &y, &child);
+		Window parent = (window_id == MAIN_WINDOW_ID) ? DefaultRootWindow(x11_display) : windows[MAIN_WINDOW_ID].x11_window;
+		XTranslateCoordinates(x11_display, wd.x11_window, parent, 0, 0, &x, &y, &child);
 		new_rect.position.x = x;
 		new_rect.position.y = y;
 
@@ -2631,13 +2647,17 @@ void DisplayServerX11::_dispatch_input_event(const Ref<InputEvent> &p_event) {
 
 	Ref<InputEventFromWindow> event_from_window = p_event;
 	if (event_from_window.is_valid() && event_from_window->get_window_id() != INVALID_WINDOW_ID) {
-		//send to a window
-		ERR_FAIL_COND(!windows.has(event_from_window->get_window_id()));
-		Callable callable = windows[event_from_window->get_window_id()].input_event_callback;
-		if (callable.is_null()) {
-			return;
+		{
+			//send to a window
+			ERR_FAIL_COND(!windows.has(event_from_window->get_window_id()));
+			Callable callable = windows[event_from_window->get_window_id()].input_event_callback;
+			if (callable.is_null()) {
+				return;
+			}
+			callable.call((const Variant **)&evp, 1, ret, ce);
 		}
-		callable.call((const Variant **)&evp, 1, ret, ce);
+		// send to all windows, that request to always get input and have no focus
+		// seems to be not needed with X11 and their input handling
 	} else {
 		//send to all windows
 		for (Map<WindowID, WindowData>::Element *E = windows.front(); E; E = E->next()) {
@@ -3007,7 +3027,10 @@ void DisplayServerX11::process_events() {
 
 			case FocusIn: {
 				DEBUG_LOG_X11("[%u] FocusIn window=%lu (%u), mode='%u' \n", frame, event.xfocus.window, window_id, event.xfocus.mode);
-
+				DEBUG_LOG_X11("\tNotifyAncestor=%d, NotifyVirtual=%d, NotifyInferior=%d,\n\tNotifyNonlinear=%d, NotifyNonlinearVirtual=%d, NotifyPointer=%d,\n\tNotifyPointerRoot=%d, NotifyDetailNone=%d\n",
+						event.xfocus.detail == NotifyAncestor, event.xfocus.detail == NotifyVirtual, event.xfocus.detail == NotifyInferior,
+						event.xfocus.detail == NotifyNonlinear, event.xfocus.detail == NotifyNonlinearVirtual, event.xfocus.detail == NotifyPointer,
+						event.xfocus.detail == NotifyPointerRoot, event.xfocus.detail == NotifyDetailNone);
 				WindowData &wd = windows[window_id];
 
 				wd.focused = true;
@@ -3058,7 +3081,10 @@ void DisplayServerX11::process_events() {
 
 			case FocusOut: {
 				DEBUG_LOG_X11("[%u] FocusOut window=%lu (%u), mode='%u' \n", frame, event.xfocus.window, window_id, event.xfocus.mode);
-
+				DEBUG_LOG_X11("\tNotifyAncestor=%d, NotifyVirtual=%d, NotifyInferior=%d,\n\tNotifyNonlinear=%d, NotifyNonlinearVirtual=%d, NotifyPointer=%d,\n\tNotifyPointerRoot=%d, NotifyDetailNone=%d\n",
+						event.xfocus.detail == NotifyAncestor, event.xfocus.detail == NotifyVirtual, event.xfocus.detail == NotifyInferior,
+						event.xfocus.detail == NotifyNonlinear, event.xfocus.detail == NotifyNonlinearVirtual, event.xfocus.detail == NotifyPointer,
+						event.xfocus.detail == NotifyPointerRoot, event.xfocus.detail == NotifyDetailNone);
 				WindowData &wd = windows[window_id];
 
 				wd.focused = false;
@@ -3644,14 +3670,17 @@ DisplayServer *DisplayServerX11::create_func(const String &p_rendering_driver, W
 
 DisplayServerX11::WindowID DisplayServerX11::_create_window(WindowMode p_mode, uint32_t p_flags, const Rect2i &p_rect) {
 	//Create window
+	WindowID id = window_id_counter++;
+	WindowData &wd = windows[id];
 
 	long visualMask = VisualScreenMask;
 	int numberOfVisuals;
 	XVisualInfo vInfoTemplate = {};
 	vInfoTemplate.screen = DefaultScreen(x11_display);
 	XVisualInfo *visualInfo = XGetVisualInfo(x11_display, visualMask, &vInfoTemplate, &numberOfVisuals);
+	Window parent = (id == MAIN_WINDOW_ID || !(p_flags & WINDOW_FLAG_BORDERLESS_BIT)) ? RootWindow(x11_display, visualInfo->screen) : windows[MAIN_WINDOW_ID].x11_window;
 
-	Colormap colormap = XCreateColormap(x11_display, RootWindow(x11_display, vInfoTemplate.screen), visualInfo->visual, AllocNone);
+	Colormap colormap = XCreateColormap(x11_display, parent, visualInfo->visual, AllocNone);
 
 	XSetWindowAttributes windowAttributes = {};
 	windowAttributes.colormap = colormap;
@@ -3661,11 +3690,13 @@ DisplayServerX11::WindowID DisplayServerX11::_create_window(WindowMode p_mode, u
 
 	unsigned long valuemask = CWBorderPixel | CWColormap | CWEventMask;
 
-	WindowID id = window_id_counter++;
-	WindowData &wd = windows[id];
+	Rect2i rect = p_rect;
 
 	if ((id != MAIN_WINDOW_ID) && (p_flags & WINDOW_FLAG_BORDERLESS_BIT)) {
 		wd.menu_type = true;
+		Window child;
+		XTranslateCoordinates(x11_display, DefaultRootWindow(x11_display), parent, rect.position.x, rect.position.y, &rect.position.x, &rect.position.y, &child);
+		XTranslateCoordinates(x11_display, DefaultRootWindow(x11_display), parent, rect.size.x, rect.size.y, &rect.size.x, &rect.size.y, &child);
 	}
 
 	if (p_flags & WINDOW_FLAG_NO_FOCUS_BIT) {
@@ -3685,7 +3716,7 @@ DisplayServerX11::WindowID DisplayServerX11::_create_window(WindowMode p_mode, u
 	}
 
 	{
-		wd.x11_window = XCreateWindow(x11_display, RootWindow(x11_display, visualInfo->screen), p_rect.position.x, p_rect.position.y, p_rect.size.width > 0 ? p_rect.size.width : 1, p_rect.size.height > 0 ? p_rect.size.height : 1, 0, visualInfo->depth, InputOutput, visualInfo->visual, valuemask, &windowAttributes);
+		wd.x11_window = XCreateWindow(x11_display, parent, rect.position.x, rect.position.y, rect.size.width > 0 ? rect.size.width : 1, rect.size.height > 0 ? rect.size.height : 1, 0, visualInfo->depth, InputOutput, visualInfo->visual, valuemask, &windowAttributes);
 
 		// Enable receiving notification when the window is initialized (MapNotify)
 		// so the focus can be set at the right time.
