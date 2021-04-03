@@ -227,7 +227,10 @@ void Window::_make_window() {
 		}
 	}
 
-	window_id = DisplayServer::get_singleton()->create_sub_window(DisplayServer::WindowMode(mode), f, Rect2i(position, size));
+	Window *parent = get_parent_visible_window();
+	DisplayServer::WindowID parent_id = parent != nullptr ? parent->window_id : DisplayServer::MAIN_WINDOW_ID;
+
+	window_id = DisplayServer::get_singleton()->create_sub_window(DisplayServer::WindowMode(mode), f, Rect2i(position, size), parent_id);
 	ERR_FAIL_COND(window_id == DisplayServer::INVALID_WINDOW_ID);
 	DisplayServer::get_singleton()->window_set_current_screen(current_screen, window_id);
 	DisplayServer::get_singleton()->window_set_max_size(max_size, window_id);
