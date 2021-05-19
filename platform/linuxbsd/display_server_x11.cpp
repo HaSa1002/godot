@@ -1196,7 +1196,7 @@ void DisplayServerX11::window_set_position(const Point2i &p_position, WindowID p
 	Point2i position = p_position;
 	int x = 0;
 	int y = 0;
-	
+
 	bool update_position = false;
 	Rect2i rect = Rect2i(wd.position, position);
 
@@ -3781,7 +3781,7 @@ DisplayServerX11::WindowID DisplayServerX11::_create_window(WindowMode p_mode, u
 	WindowID id = window_id_counter++;
 	WindowData &wd = windows[id];
 
-	Window parent_window = NULL;
+	Window parent_window = 0;
 	WindowID non_transient_parent = p_parent_window_id;
 	Rect2i rect = p_rect;
 
